@@ -48,6 +48,14 @@ export class StorageManager {
     return p;
   }
 
+  getJson(key, defaultValue = null) {
+    return loadJSON('knights_chess_' + key, defaultValue);
+  }
+
+  setJson(key, value) {
+    return saveJSON('knights_chess_' + key, value);
+  }
+
   getStars() {
     return this.stars;
   }
