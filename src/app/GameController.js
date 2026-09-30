@@ -267,6 +267,7 @@ export class GameController {
 
   drawStatic() {
     this.highlights.clearHL();
+    if (!this.G) return; // game state not created yet (startGame -> hideHint)
     if (this.lastMove) {
       this.highlights.addHL(this.lastMove.fr, this.lastMove.fc, 'last');
       this.highlights.addHL(this.lastMove.tr, this.lastMove.tc, 'last');
