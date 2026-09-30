@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: '/game-covua3d/',
   worker: {
     format: 'es'
   },
