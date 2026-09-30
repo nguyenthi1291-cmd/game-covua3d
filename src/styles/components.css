@@ -701,3 +701,428 @@ table.lb .num {
   background: var(--bg);
   font-family: var(--font-kid);
 }
+
+/* View Mode Bar on Stage */
+.view-mode-bar {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 4;
+  background: rgba(15, 24, 38, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 4px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  max-width: calc(100% - 28px);
+  overflow-x: auto;
+}
+
+.v-btn {
+  background: transparent;
+  color: var(--fg);
+  border: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: var(--font-kid);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.v-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--gold2);
+}
+
+.v-btn.active {
+  background: var(--gold);
+  color: var(--ink);
+  box-shadow: 0 2px 8px rgba(242, 193, 78, 0.3);
+}
+
+.v-btn.gold {
+  background: linear-gradient(135deg, #ffd97a, #f2c14e);
+  color: var(--ink);
+}
+
+/* Zoom Controls on Stage */
+.zoom-controls {
+  position: absolute;
+  left: 14px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 4;
+}
+
+.z-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(15, 24, 38, 0.85);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.z-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold2);
+  transform: scale(1.08);
+}
+
+/* 5-Second Battle Progress Bar */
+.battle-progress-bar {
+  margin-top: 8px;
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.battle-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff416c, #ff4b2b, #ffd23f);
+  border-radius: 999px;
+  box-shadow: 0 0 10px #ff4b2b;
+}
+
+.battle-tag {
+  font-size: 0.72rem;
+  font-family: var(--font-kid);
+  letter-spacing: 0.12em;
+  color: var(--gold2);
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+/* Hint Card Overlay */
+.hint-card {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 5;
+  width: min(340px, calc(100% - 28px));
+  box-sizing: border-box;
+  background: rgba(15, 24, 38, 0.96);
+  border: 2px solid #00f0ff;
+  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.25);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--font-kid);
+  animation: rise 0.3s ease-out;
+}
+
+.hc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hc-badge {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #00f0ff;
+  font-weight: 700;
+}
+
+.hc-close {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.hc-close:hover {
+  color: var(--fg);
+}
+
+.hc-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold2);
+  line-height: 1.2;
+}
+
+.hc-reason {
+  font-size: 0.9rem;
+  color: var(--fg);
+  line-height: 1.35;
+}
+
+.hc-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Chess Academy Styles */
+.academy-overlay {
+  z-index: 10;
+  background: rgba(6, 10, 18, 0.85);
+  backdrop-filter: blur(8px);
+}
+
+.academy-modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  border-radius: 20px;
+  max-width: 880px;
+  width: 95%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.academy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel2);
+}
+
+.academy-title .badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold2);
+  letter-spacing: 0.12em;
+}
+
+.academy-title h2 {
+  margin: 2px 0 0;
+  font-size: 1.35rem;
+  color: var(--fg);
+}
+
+.close-btn {
+  flex: none;
+  padding: 6px 14px;
+}
+
+.academy-body {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .academy-body {
+    grid-template-columns: 1fr;
+  }
+  .academy-sidebar {
+    max-height: 140px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.academy-sidebar {
+  border-right: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.lesson-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.lesson-item:hover {
+  background: var(--panel2);
+}
+
+.lesson-item.active {
+  background: var(--panel2);
+  border-color: var(--gold);
+}
+
+.lesson-item .l-icon {
+  font-size: 1.3rem;
+  flex: none;
+}
+
+.lesson-item .l-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lesson-item .l-title {
+  display: block;
+  font-family: var(--font-kid);
+  font-weight: 700;
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lesson-item .l-sub {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.lesson-item .l-check {
+  color: var(--ok);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.academy-content {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.lesson-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lesson-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.lesson-head .big-icon {
+  font-size: 2.6rem;
+}
+
+.lesson-head h3 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-family: var(--font-kid);
+  color: var(--gold2);
+}
+
+.lesson-head .en-sub {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.lesson-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--fg);
+}
+
+.lesson-text h3 {
+  font-size: 1.1rem;
+  margin: 0 0 8px;
+  color: var(--gold2);
+}
+
+.lesson-text ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lesson-text li {
+  line-height: 1.5;
+}
+
+.lesson-drill-box {
+  background: var(--panel2);
+  border: 1px solid var(--gold);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drill-head {
+  font-weight: 700;
+  color: var(--gold2);
+  font-size: 1rem;
+  font-family: var(--font-kid);
+}
+
+.drill-prompt {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--fg);
+}
+
+.drill-prompt-en {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.drill-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.lesson-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 8px;
+}
+
+.nav-count {
+  font-family: var(--font-kid);
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.9rem;
+}

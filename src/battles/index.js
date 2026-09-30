@@ -23,6 +23,28 @@ export class BattleController {
     this.anim.timeScale = 1;
     if (skipBtn) skipBtn.hidden = false;
 
+    // Show 5-second battle progress timer on banner
+    let timerBar = document.getElementById('battleTimerBar');
+    if (!timerBar && bannerEl) {
+      timerBar = document.createElement('div');
+      timerBar.id = 'battleTimerBar';
+      timerBar.className = 'battle-progress-bar';
+      timerBar.innerHTML = `<div class="battle-progress-fill"></div><div class="battle-tag">⚔️ GIAO TRANH 5s ⚔️</div>`;
+      bannerEl.appendChild(timerBar);
+    }
+    if (timerBar) {
+      timerBar.style.display = 'block';
+      const fill = timerBar.querySelector('.battle-progress-fill');
+      if (fill) {
+        fill.style.transition = 'none';
+        fill.style.width = '0%';
+        requestAnimationFrame(() => {
+          fill.style.transition = 'width 4.8s linear';
+          fill.style.width = '100%';
+        });
+      }
+    }
+
     const camFrom = this.camera.position.clone();
     const tgtFrom = this.controls.target.clone();
     const dir = new V3().subVectors(defPos, att.position);
@@ -104,6 +126,7 @@ export class BattleController {
     resetRig(att);
 
     this.anim.timeScale = 1;
+    if (timerBar) timerBar.style.display = 'none';
     if (skipBtn) skipBtn.hidden = true;
     if (bannerEl) bannerEl.hidden = true;
     this.controls.enabled = true;

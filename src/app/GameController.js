@@ -8,6 +8,8 @@ import { BattleController } from '../battles/index.js';
 import { SoundEffects } from '../audio/sound.js';
 import { SpeechNarrator } from '../learning/speech.js';
 import { QuizManager } from '../learning/quiz.js';
+import { ChessAcademy } from '../learning/academy.js';
+import { getMoveHint } from '../engine/hint.js';
 import { StorageManager } from '../storage/storage.js';
 import {
   newGame,
@@ -44,11 +46,12 @@ export class GameController {
     const reduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.cfg = {
       mode: 'ai',
-      p1: 'Player',
-      p2: 'Player 2',
+      p1: 'Người chơi',
+      p2: 'Người chơi 2',
       diff: 'easy',
       side: 'w',
       battle: !reduced,
+      clarity: true,
       style: 'cartoon',
       voice: true,
       moves: true,
@@ -85,8 +88,12 @@ export class GameController {
     this.game = null;
     this.lifted = null;
     this.pliesSinceQuiz = 0;
+    this.cameraMode = 'iso'; // '2d', 'iso', '3d'
+    this.currentHint = null;
+    this.activeDrill = null;
 
     this.initQuiz();
+    this.initAcademy();
     this.bindEvents();
     this.startLoop();
   }
@@ -140,6 +147,17 @@ export class GameController {
     );
   }
 
+  initAcademy() {
+    const modalEl = $('academyModal');
+    this.academy = new ChessAcademy(
+      modalEl,
+      this.sound,
+      this.storage,
+      this.narrator,
+      (lesson, onDone) => this.startDrill(lesson, onDone)
+    );
+  }
+
   whoPlays(color) {
     return this.game[color === 'w' ? 'white' : 'black'];
   }
@@ -148,9 +166,11 @@ export class GameController {
     return !this.over && !!this.whoPlays(this.G.turn).bot;
   }
 
-  startGame() {
+  startGame(customG = null) {
     this.anim.clear();
     this.narrator.cancel();
+    this.hideHint();
+    this.activeDrill = null;
 
     if (this.meshAt) {
       for (const row of this.meshAt) {
@@ -160,7 +180,7 @@ export class GameController {
       }
     }
 
-    this.G = newGame();
+    this.G = customG || newGame();
     this.repetition.reset(this.G);
     this.meshAt = Array.from({ length: 8 }, () => Array(8).fill(null));
 
@@ -185,8 +205,8 @@ export class GameController {
     this.lifted = null;
     this.pliesSinceQuiz = 0;
 
-    const p1 = (this.cfg.p1 || '').trim() || 'Player';
-    const p2 = (this.cfg.p2 || '').trim() || 'Player 2';
+    const p1 = (this.cfg.p1 || '').trim() || 'Người chơi';
+    const p2 = (this.cfg.p2 || '').trim() || 'Người chơi 2';
 
     if (this.cfg.mode === 'ai') {
       const side = this.cfg.side === 'r' ? (Math.random() < 0.5 ? 'w' : 'b') : this.cfg.side;
@@ -210,13 +230,11 @@ export class GameController {
     }
 
     this.curLegal = legalMoves(this.G);
-    const view = this.game.mode === 'ai' ? this.game.human : 'w';
-    this.setup.camera.position.set(0, 10.5, view === 'w' ? 10.5 : -10.5);
-    this.setup.controls.target.set(0, 0, 0);
-    this.setup.controls.update();
+    this.applyCameraMode(this.cameraMode);
 
-    for (const id of ['result', 'banner', 'skipBtn', 'quiz', 'wordCard', 'promo']) {
-      $(id).hidden = true;
+    for (const id of ['result', 'banner', 'skipBtn', 'quiz', 'wordCard', 'promo', 'hintCard']) {
+      const el = $(id);
+      if (el) el.hidden = true;
     }
 
     this.setup.controls.enabled = true;
@@ -226,6 +244,25 @@ export class GameController {
     if (this.isAITurn()) {
       this.scheduleAI();
     }
+  }
+
+  startDrill(lesson, onComplete) {
+    this.startGame();
+    this.activeDrill = {
+      lesson,
+      onComplete,
+      expected: lesson.drill.expectedMove
+    };
+
+    // Show drill banner
+    const b1 = $('bannerLine');
+    const b2 = $('bannerMove');
+    if (b1 && b2) {
+      b1.textContent = `🎯 ${lesson.titleVi}`;
+      b2.textContent = lesson.drill.promptVi;
+      $('banner').hidden = false;
+    }
+    this.sound.play('twinkle');
   }
 
   drawStatic() {
@@ -238,6 +275,16 @@ export class GameController {
       const k = findKing(this.G, this.G.turn);
       this.highlights.addHL(k[0], k[1], 'check');
     }
+    if (this.currentHint) {
+      this.highlights.addHL(this.currentHint.move.fr, this.currentHint.move.fc, 'hintFrom');
+      this.highlights.addHL(this.currentHint.move.tr, this.currentHint.move.tc, 'hintTo');
+      this.highlights.addArrow(
+        this.currentHint.move.fr,
+        this.currentHint.move.fc,
+        this.currentHint.move.tr,
+        this.currentHint.move.tc
+      );
+    }
   }
 
   setLift(r, c) {
@@ -246,7 +293,7 @@ export class GameController {
     if (r != null) {
       const m = this.meshAt[r][c];
       if (m) {
-        m.position.y = 0.14;
+        m.position.y = 0.16;
         this.lifted = m;
       }
     }
@@ -268,6 +315,7 @@ export class GameController {
 
   select(r, c) {
     this.sel = [r, c];
+    this.hideHint();
     this.drawStatic();
     this.highlights.addHL(r, c, 'sel');
     this.setLift(r, c);
@@ -362,6 +410,7 @@ export class GameController {
 
   async doMove(m) {
     this.busy = true;
+    this.hideHint();
     this.highlights.clearHL();
     $('wordCard').hidden = true;
 
@@ -397,7 +446,7 @@ export class GameController {
     }
 
     if (capMesh && this.cfg.battle) {
-      $('bannerLine').innerHTML = `<span style="color:${TEAM[pc.c].css}">${teamName(pc.c)} ${PNAME[pc.t]}</span> attacks <span style="color:${TEAM[capPiece.c].css}">${teamName(capPiece.c)} ${PNAME[capPiece.t]}</span>`;
+      $('bannerLine').innerHTML = `<span style="color:${TEAM[pc.c].css}">${teamName(pc.c)} ${PNAME[pc.t]}</span> đấu <span style="color:${TEAM[capPiece.c].css}">${teamName(capPiece.c)} ${PNAME[capPiece.t]}</span>`;
       $('bannerMove').textContent = ATTACK[pc.t] + '!';
       $('banner').hidden = false;
       await this.battles.runBattle(mover, capMesh, toPos, sqPos(capSq[0], capSq[1]), pc.t, $('skipBtn'), $('banner'));
@@ -447,6 +496,35 @@ export class GameController {
     this.curLegal = legalMoves(this.G);
     this.drawStatic();
 
+    // Check Drill Completion
+    if (this.activeDrill) {
+      const exp = this.activeDrill.expected;
+      const matched =
+        (!exp.fr || m.fr === exp.fr) &&
+        (!exp.fc || m.fc === exp.fc) &&
+        (!exp.tr || m.tr === exp.tr) &&
+        (!exp.tc || m.tc === exp.tc);
+
+      if (matched) {
+        this.anim.burst(toPos.clone().add(new V3(0, 0.8, 0)), {
+          n: 80,
+          colors: [0xffd23f, 0x2ecc71, 0xffffff, 0x5ee0ff],
+          power: 3,
+          size: 0.22,
+          life: 1.2
+        });
+        this.sound.play('twinkle');
+        $('bannerLine').textContent = '🎉 XUẤT SẮC!';
+        $('bannerMove').textContent = 'Bạn đã hoàn thành bài thực hành!';
+        if (this.activeDrill.onComplete) this.activeDrill.onComplete();
+        this.renderStars();
+        setTimeout(() => {
+          $('banner').hidden = true;
+          this.activeDrill = null;
+        }, 3000);
+      }
+    }
+
     if (inCheck(this.G) && this.curLegal.length && this.cfg.moves) {
       this.narrator.say('Check!', false);
     }
@@ -461,7 +539,7 @@ export class GameController {
     this.busy = false;
     this.pliesSinceQuiz++;
 
-    if (!this.over && this.cfg.quiz && !this.isAITurn() && this.pliesSinceQuiz >= 4) {
+    if (!this.over && this.cfg.quiz && !this.isAITurn() && this.pliesSinceQuiz >= 4 && !this.activeDrill) {
       this.pliesSinceQuiz = 0;
       await this.quizManager.runQuiz();
     }
@@ -504,16 +582,91 @@ export class GameController {
     }
   }
 
+  showMoveHint() {
+    if (this.busy || this.over || this.isAITurn()) return;
+    const hint = getMoveHint(this.G);
+    if (!hint) return;
+
+    this.currentHint = hint;
+    this.drawStatic();
+
+    const card = $('hintCard');
+    $('hintTitle').textContent = hint.titleVi;
+    $('hintReason').textContent = hint.reasonVi;
+    card.hidden = false;
+    this.sound.play('twinkle');
+
+    if (this.cfg.voice) {
+      this.narrator.say(hint.reasonEn);
+    }
+  }
+
+  hideHint() {
+    this.currentHint = null;
+    const card = $('hintCard');
+    if (card) card.hidden = true;
+    this.drawStatic();
+  }
+
+  applyHint() {
+    if (!this.currentHint || this.busy || this.over) return;
+    const m = this.currentHint.move;
+    this.hideHint();
+    this.doMove(m);
+  }
+
+  applyCameraMode(mode) {
+    this.cameraMode = mode;
+    const view = this.game?.mode === 'ai' ? this.game.human : 'w';
+    const mult = view === 'w' ? 1 : -1;
+
+    // Update active button classes
+    document.querySelectorAll('.v-btn').forEach(b => b.classList.remove('active'));
+    if (mode === '2d') $('btnView2D')?.classList.add('active');
+    else if (mode === 'iso') $('btnViewIso')?.classList.add('active');
+    else if (mode === '3d') $('btnView3D')?.classList.add('active');
+
+    let targetPos;
+    if (mode === '2d') {
+      targetPos = new V3(0, 13.5, 0.001 * mult);
+    } else if (mode === 'iso') {
+      targetPos = new V3(0, 11.5, 8.5 * mult);
+    } else {
+      // 3d arena
+      targetPos = new V3(0, 9.5, 11.0 * mult);
+    }
+
+    const camFrom = this.setup.camera.position.clone();
+    this.anim.tween(600, e => {
+      this.setup.camera.position.lerpVectors(camFrom, targetPos, e);
+      this.setup.controls.target.set(0, 0, 0);
+    });
+  }
+
+  zoomCamera(delta) {
+    const cam = this.setup.camera;
+    const tgt = this.setup.controls.target;
+    const v = new V3().subVectors(cam.position, tgt);
+    const len = v.length();
+    const newLen = THREE.MathUtils.clamp(len + delta, 4.5, 22);
+    v.setLength(newLen);
+    cam.position.copy(tgt).add(v);
+  }
+
+  resetCameraView() {
+    this.applyCameraMode(this.cameraMode);
+  }
+
   checkEnd() {
     if (!this.curLegal.length) {
-      if (inCheck(this.G)) this.endGame(opp(this.G.turn), 'Checkmate');
-      else this.endGame('d', 'Stalemate');
+      if (inCheck(this.G)) this.endGame(opp(this.G.turn), 'Chiếu bí (Checkmate)');
+      else this.endGame('d', 'Hòa cờ (Stalemate)');
     } else if (this.G.half >= 100) {
-      this.endGame('d', '50-move rule');
+      this.endGame('d', 'Luật 50 nước đi');
     } else if (this.repetition.isThreefold(this.G)) {
-      this.endGame('d', 'Same position three times');
+      this.endGame('d', 'Thế cờ lặp lại 3 lần');
     } else if (insufficient(this.G)) {
-      this.endGame('d', 'Not enough pieces to checkmate');
+      this.endGame('d', 'Không đủ lực lượng để chiếu bí');
     }
   }
 
@@ -522,6 +675,7 @@ export class GameController {
     this.over = true;
     this.sel = null;
     this.setLift(null);
+    this.hideHint();
     this.drawStatic();
     $('wordCard').hidden = true;
 
@@ -554,15 +708,15 @@ export class GameController {
       }
     }
 
-    const title = winner === 'd' ? "It's a draw!" : `${teamName(winner)} wins!`;
+    const title = winner === 'd' ? 'Ván cờ Hòa!' : `Phe ${teamName(winner)} chiến thắng!`;
     $('resTitle').textContent = title;
     $('resReason').textContent = reason;
     $('resElo').innerHTML = blocks
       .map(b => {
         const cls = b.d > 0 ? 'up' : b.d < 0 ? 'down' : 'flat';
-        const sStr = b.S === 1 ? '1 (win)' : b.S === 0 ? '0 (loss)' : '0.5 (draw)';
+        const sStr = b.S === 1 ? '1 (thắng)' : b.S === 0 ? '0 (thua)' : '0.5 (hòa)';
         return `<div class="res-block"><div class="row"><span>${this.esc(b.name)}</span><span class="elo">${b.R} → ${b.newR} <span class="delta ${cls}">(${b.d > 0 ? '+' : ''}${b.d})</span></span></div>
-        <div class="formula">Opponent: ${this.esc(b.oppName)} · Elo ${b.oppR}<br>E = 1/(1+10^((${b.oppR}−${b.R})/400)) = ${b.Ea.toFixed(2)}<br>S = ${sStr} · K = ${K_FACTOR}<br>Δ = ${K_FACTOR} × (${b.S} − ${b.Ea.toFixed(2)}) = ${b.d > 0 ? '+' : ''}${b.d}</div></div>`;
+        <div class="formula">Đối thủ: ${this.esc(b.oppName)} · Elo ${b.oppR}<br>E = 1/(1+10^((${b.oppR}−${b.R})/400)) = ${b.Ea.toFixed(2)}<br>S = ${sStr} · K = ${K_FACTOR}<br>Δ = ${K_FACTOR} × (${b.S} − ${b.Ea.toFixed(2)}) = ${b.d > 0 ? '+' : ''}${b.d}</div></div>`;
       })
       .join('');
 
@@ -618,28 +772,29 @@ export class GameController {
     hud.classList.remove('check');
 
     if (this.over) {
-      st.textContent = 'Game over';
+      st.textContent = 'Trò chơi kết thúc';
       return;
     }
     if (state === 'think') {
-      st.textContent = `${this.whoPlays(this.G.turn).name} is thinking…`;
+      st.textContent = `${this.whoPlays(this.G.turn).name} đang suy nghĩ…`;
       return;
     }
     if (state === 'anim') {
-      st.textContent = `${teamName(this.G.turn)} is moving…`;
+      st.textContent = `${teamName(this.G.turn)} đang di chuyển…`;
       return;
     }
 
     const chk = inCheck(this.G);
     if (chk) hud.classList.add('check');
-    st.textContent = `${teamName(this.G.turn)}'s turn · ${this.whoPlays(this.G.turn).name}${chk ? ' · Check!' : ''}`;
+    st.textContent = `Lượt của ${teamName(this.G.turn)} · ${this.whoPlays(this.G.turn).name}${chk ? ' · Chiếu tướng!' : ''}`;
   }
 
   renderStars() {
     const s = this.storage.getStars();
     $('hudStars').textContent = '⭐ ' + s;
-    $('panelStars').textContent = `⭐ ${s} star${s === 1 ? '' : 's'}`;
-    $('qStars').textContent = '⭐ ' + s;
+    $('panelStars').textContent = `⭐ ${s} sao`;
+    const qS = $('qStars');
+    if (qS) qS.textContent = '⭐ ' + s;
   }
 
   renderUI() {
@@ -664,7 +819,7 @@ export class GameController {
 
     const mv = $('moves');
     if (!this.moveList.length) {
-      mv.innerHTML = '<span class="empty" style="grid-column:1/-1">No moves yet.</span>';
+      mv.innerHTML = '<span class="empty" style="grid-column:1/-1">Chưa có nước đi nào.</span>';
     } else {
       let h = '';
       const last = this.moveList.length - 1;
@@ -684,11 +839,11 @@ export class GameController {
   renderLB() {
     const rows = this.storage.getLeaderboard(10);
     if (!rows.length) {
-      $('lb').innerHTML = '<p class="empty">No rated games yet. Finish a game to join the ranking.</p>';
+      $('lb').innerHTML = '<p class="empty">Chưa có ván đấu tính điểm nào. Hãy hoàn thành ván để vào bảng xếp hạng.</p>';
       return;
     }
     $('lb').innerHTML =
-      '<table class="lb"><thead><tr><th>#</th><th>Player</th><th class="num">Elo</th><th class="num">W-D-L</th></tr></thead><tbody>' +
+      '<table class="lb"><thead><tr><th>#</th><th>Người chơi</th><th class="num">Elo</th><th class="num">T-H-B</th></tr></thead><tbody>' +
       rows
         .map(
           (r, i) =>
@@ -705,7 +860,7 @@ export class GameController {
     $('fP2').hidden = m !== 'pvp';
     $('fDiff').hidden = m !== 'ai';
     $('fSide').hidden = m !== 'ai';
-    $('lblP1').textContent = m === 'ai' ? 'Your name' : "Blue player's name";
+    $('lblP1').textContent = m === 'ai' ? 'Tên của bạn' : "Tên người chơi Xanh";
   }
 
   bindEvents() {
@@ -722,6 +877,8 @@ export class GameController {
 
     $('selStyle').onchange = e => (this.cfg.style = e.target.value);
     $('tBattle').onchange = e => (this.cfg.battle = e.target.checked);
+    const tClarity = $('tClarity');
+    if (tClarity) tClarity.onchange = e => (this.cfg.clarity = e.target.checked);
     $('tVoice').onchange = e => {
       this.cfg.voice = e.target.checked;
       this.narrator.enabled = this.cfg.voice;
@@ -734,20 +891,35 @@ export class GameController {
       this.sound.enabled = this.cfg.sound;
     };
 
-    $('wcSay').onclick = () => this.narrator.say($('wordCard').dataset.say || '');
+    // Camera View Mode switcher buttons
+    $('btnView2D').onclick = () => this.applyCameraMode('2d');
+    $('btnViewIso').onclick = () => this.applyCameraMode('iso');
+    $('btnView3D').onclick = () => this.applyCameraMode('3d');
 
-    $('btnQuiz').onclick = () => {
-      if (this.busy || this.quizManager.quizActive) return;
-      this.pliesSinceQuiz = 0;
-      this.quizManager.runQuiz().then(() => {
-        if (!this.over && this.isAITurn()) this.scheduleAI();
-      });
+    // Zoom and reset buttons
+    $('btnZoomIn').onclick = () => this.zoomCamera(-2);
+    $('btnZoomOut').onclick = () => this.zoomCamera(2);
+    $('btnResetCam').onclick = () => this.resetCameraView();
+
+    // Hint buttons
+    $('btnHint').onclick = () => this.showMoveHint();
+    $('btnSideHint').onclick = () => this.showMoveHint();
+    $('hintClose').onclick = () => this.hideHint();
+    $('btnApplyHint').onclick = () => this.applyHint();
+    $('btnHintVoice').onclick = () => {
+      if (this.currentHint) this.narrator.say(this.currentHint.reasonEn);
     };
+
+    // Chess Academy buttons
+    $('btnAcademy').onclick = () => this.academy.show();
+    $('btnSideAcademy').onclick = () => this.academy.show();
+
+    $('wcSay').onclick = () => this.narrator.say($('wordCard').dataset.say || '');
 
     $('btnResign').onclick = () => {
       if (this.over || this.busy) return;
       const loser = this.game.mode === 'ai' ? this.game.human : this.G.turn;
-      this.endGame(opp(loser), `${teamName(loser)} resigned`);
+      this.endGame(opp(loser), `${teamName(loser)} đã đầu hàng`);
     };
 
     $('btnFlip').onclick = () => {

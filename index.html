@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Knights Chess Arena 3D</title>
+  <title>Knights Chess Arena 3D - Cờ Vua 3D & Học Chơi Cờ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&family=Bangers&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -11,72 +11,120 @@
 <body>
   <div class="app">
     <main id="stage" aria-label="3D chess board">
+      <!-- Top HUD -->
       <div id="hud">
         <span class="dot w" id="turnDot"></span>
-        <span class="st" id="statusText">Blue's turn</span>
+        <span class="st" id="statusText">Lượt của Xanh</span>
         <span class="stars" id="hudStars">⭐ 0</span>
       </div>
+
+      <!-- Quick Action Floating Bar on Stage -->
+      <div id="viewModeBar" class="view-mode-bar">
+        <button class="v-btn" id="btnView2D" title="Góc nhìn 2D thẳng từ trên cao (nhìn rõ nhất)">👁️ 2D Trên cao</button>
+        <button class="v-btn active" id="btnViewIso" title="Góc nhìn 3D nghiêng rõ nét">📐 3D Nghiêng</button>
+        <button class="v-btn" id="btnView3D" title="Góc nhìn 3D Đấu trường">🏰 3D Đấu trường</button>
+        <button class="v-btn" id="btnHint" title="Gợi ý nước đi tối ưu">💡 Gợi ý nước đi</button>
+        <button class="v-btn gold" id="btnAcademy" title="Học luật và chiến thuật cờ vua">🎓 Học chơi cờ</button>
+      </div>
+
+      <!-- Zoom & View controls on stage -->
+      <div class="zoom-controls">
+        <button class="z-btn" id="btnZoomIn" title="Phóng to">+</button>
+        <button class="z-btn" id="btnZoomOut" title="Thu nhỏ">−</button>
+        <button class="z-btn" id="btnResetCam" title="Căn giữa bàn cờ">🎯</button>
+      </div>
+
+      <!-- 5-Second Battle Banner -->
       <div id="banner" hidden>
         <div class="b1" id="bannerLine"></div>
         <div class="b2" id="bannerMove"></div>
       </div>
-      <button id="skipBtn" class="btn" hidden>Skip battle ⏭</button>
+      <button id="skipBtn" class="btn" hidden>Bỏ qua giao tranh ⏭</button>
+
+      <!-- Move Hint Overlay Card -->
+      <div id="hintCard" class="hint-card" hidden>
+        <div class="hc-head">
+          <span class="hc-badge">💡 GỢI Ý CHIẾN THUẬT</span>
+          <button class="hc-close" id="hintClose">✕</button>
+        </div>
+        <div class="hc-title" id="hintTitle">Gợi ý nước đi</div>
+        <div class="hc-reason" id="hintReason"></div>
+        <div class="hc-foot">
+          <button class="btn primary" id="btnApplyHint">Chơi nước này ➔</button>
+          <button class="btn" id="btnHintVoice">🔊 Nghe gợi ý</button>
+        </div>
+      </div>
+
+      <!-- Word Learning Card -->
       <div id="wordCard" class="word-card" hidden>
         <div class="wc-top">
           <span class="chip" id="wcChip"></span>
-          <span id="wcTeam">Blue</span>
+          <span id="wcTeam">Xanh</span>
         </div>
         <div class="wc-word" id="wcWord">KNIGHT</div>
         <div class="wc-hint" id="wcHint"></div>
         <div class="wc-line" id="wcLine"></div>
-        <button class="btn wc-say" id="wcSay">🔊 Listen</button>
+        <button class="btn wc-say" id="wcSay">🔊 Lắng nghe</button>
       </div>
+
+      <!-- Quiz Overlay -->
       <div id="quiz" class="quiz" hidden>
         <div class="q-head">
-          <span>⭐ Quiz time!</span>
+          <span>⭐ Thử thách đố vui!</span>
           <span id="qStars"></span>
         </div>
         <div class="q-text" id="qText"></div>
         <div class="q-opts" id="qOpts"></div>
         <div class="q-msg" id="qMsg"></div>
         <div class="q-foot">
-          <button class="btn" id="qSay">🔊 Listen again</button>
-          <button class="btn" id="qSkip">Skip</button>
+          <button class="btn" id="qSay">🔊 Nghe lại</button>
+          <button class="btn" id="qSkip">Bỏ qua</button>
         </div>
       </div>
+
+      <!-- Promotion Overlay -->
       <div id="promo" class="overlay" hidden>
         <div class="card">
-          <h3>Promotion!</h3>
-          <p class="hint">Your pawn reached the last row. Pick a new piece.</p>
+          <h3>Phong cấp Tốt!</h3>
+          <p class="hint">Tốt đã tiến tới hàng cuối cùng. Hãy chọn một quân cờ mới.</p>
           <div class="promo-row" id="promoRow"></div>
-          <button class="btn" id="promoCancel">Cancel move</button>
+          <button class="btn" id="promoCancel">Hủy nước đi</button>
         </div>
       </div>
+
+      <!-- Result Overlay -->
       <div id="result" class="overlay" hidden>
         <div class="card">
-          <div class="eyebrow" id="resReason">Checkmate</div>
-          <h3 id="resTitle">Blue wins!</h3>
+          <div class="eyebrow" id="resReason">Chiếu bí</div>
+          <h3 id="resTitle">Xanh chiến thắng!</h3>
           <div id="resElo" style="display:flex;flex-direction:column;gap:8px"></div>
           <div class="btns">
-            <button class="btn" id="resView">Look at the board</button>
-            <button class="btn primary" id="resNew">New game</button>
+            <button class="btn" id="resView">Xem lại bàn cờ</button>
+            <button class="btn primary" id="resNew">Ván mới</button>
           </div>
         </div>
       </div>
-      <div id="loading">Building the castle…</div>
+
+      <!-- Chess Academy Modal -->
+      <div id="academyModal" class="overlay academy-overlay" hidden></div>
+
+      <div id="loading">Đang tải bàn cờ 3D…</div>
     </main>
 
     <aside class="panel">
       <div class="section first">
-        <div class="eyebrow">3D chess · Elo · English</div>
+        <div class="eyebrow">3D Chess · Elo · Đấu Trường Cờ Vua</div>
         <h1>Knights Chess Arena</h1>
-        <p class="hint">Tap a piece to hear its name. Every capture starts a battle.</p>
+        <p class="hint">Chạm vào quân cờ để xem chi tiết. Mỗi pha ăn quân sẽ diễn ra màn giao tranh 5 giây kịch tính!</p>
       </div>
 
       <div class="section">
         <div class="stars-card">
-          <span class="big" id="panelStars">⭐ 0 stars</span>
-          <button class="btn primary" id="btnQuiz" style="flex:none">Quiz me!</button>
+          <span class="big" id="panelStars">⭐ 0 sao</span>
+          <div style="display:flex;gap:6px">
+            <button class="btn" id="btnSideHint" title="Xem gợi ý nước đi tốt nhất">💡 Gợi ý</button>
+            <button class="btn primary" id="btnSideAcademy">🎓 Học cờ</button>
+          </div>
         </div>
       </div>
 
@@ -96,75 +144,76 @@
           </div>
         </div>
         <div class="btns">
-          <button class="btn" id="btnResign">Resign</button>
-          <button class="btn" id="btnFlip">Turn the board</button>
+          <button class="btn" id="btnResign">Đầu hàng</button>
+          <button class="btn" id="btnFlip">🔄 Xoay bàn cờ</button>
         </div>
       </div>
 
       <div class="section">
-        <h2>Moves</h2>
+        <h2>Nước đi (Move History)</h2>
         <div class="moves" id="moves"></div>
       </div>
 
       <div class="section">
-        <h2>New game</h2>
+        <h2>Ván mới</h2>
         <div class="seg" role="group" aria-label="Game mode">
-          <button id="modeAI" aria-pressed="true">vs Computer</button>
-          <button id="modePVP" aria-pressed="false">2 Players</button>
+          <button id="modeAI" aria-pressed="true">Đấu Máy (AI)</button>
+          <button id="modePVP" aria-pressed="false">2 Người chơi</button>
         </div>
         <div class="fields">
           <label class="field" id="fP1">
-            <span id="lblP1">Your name</span>
-            <input type="text" id="inP1" maxlength="20" value="Player">
+            <span id="lblP1">Tên của bạn</span>
+            <input type="text" id="inP1" maxlength="20" value="Người chơi">
           </label>
           <label class="field" id="fP2" hidden>
-            <span>Red player's name</span>
-            <input type="text" id="inP2" maxlength="20" value="Player 2">
+            <span>Tên người chơi Đỏ</span>
+            <input type="text" id="inP2" maxlength="20" value="Người chơi 2">
           </label>
           <label class="field" id="fDiff">
-            <span>Computer level</span>
+            <span>Cấp độ Máy (AI)</span>
             <select id="selDiff">
-              <option value="easy" selected>Easy · Elo 800</option>
-              <option value="med">Medium · Elo 1200</option>
-              <option value="hard">Hard · Elo 1600</option>
+              <option value="easy" selected>Dễ · Elo 800</option>
+              <option value="med">Trung bình · Elo 1200</option>
+              <option value="hard">Khó · Elo 1600</option>
             </select>
           </label>
           <label class="field full" id="fSide">
-            <span>Your team</span>
+            <span>Chọn phe</span>
             <select id="selSide">
-              <option value="w">Blue (moves first)</option>
-              <option value="b">Red</option>
-              <option value="r">Random</option>
+              <option value="w">Xanh (Đi trước)</option>
+              <option value="b">Đỏ</option>
+              <option value="r">Ngẫu nhiên</option>
             </select>
           </label>
           <label class="field full">
-            <span>Battle style</span>
+            <span>Phong cách giao tranh</span>
             <select id="selStyle">
-              <option value="cartoon" selected>Cartoon · fun for kids</option>
-              <option value="epic">Epic · pieces shatter</option>
+              <option value="cartoon" selected>Hoạt hình (Vui nhộn & Ngôi sao)</option>
+              <option value="epic">Sử thi (Vỡ nát pha lê & Chấn động)</option>
             </select>
           </label>
         </div>
         <div class="toggles">
-          <label class="toggle"><input type="checkbox" id="tBattle" checked> Battle scenes when a piece is captured</label>
-          <label class="toggle"><input type="checkbox" id="tVoice" checked> Say piece names out loud</label>
-          <label class="toggle"><input type="checkbox" id="tMoves" checked> Read every move out loud</label>
-          <label class="toggle"><input type="checkbox" id="tQuiz" checked> Quiz time every few moves</label>
-          <label class="toggle"><input type="checkbox" id="tRotate" checked> Turn the board each turn (2 players)</label>
-          <label class="toggle"><input type="checkbox" id="tSound" checked> Sound effects</label>
+          <label class="toggle"><input type="checkbox" id="tBattle" checked> ⚔️ Hoạt cảnh giao tranh 5s khi ăn quân</label>
+          <label class="toggle"><input type="checkbox" id="tClarity" checked> 👁️ Viền sáng nhận diện quân cờ rõ nét</label>
+          <label class="toggle"><input type="checkbox" id="tVoice" checked> 🔊 Đọc tên quân cờ</label>
+          <label class="toggle"><input type="checkbox" id="tMoves" checked> 🗣️ Đọc to từng nước đi</label>
+          <label class="toggle"><input type="checkbox" id="tQuiz" checked> ⭐ Câu hỏi đố vui định kỳ</label>
+          <label class="toggle"><input type="checkbox" id="tRotate" checked> 🔄 Tự động xoay bàn cờ theo lượt (2 người)</label>
+          <label class="toggle"><input type="checkbox" id="tSound" checked> 🎵 Hiệu ứng âm thanh</label>
         </div>
-        <button class="btn primary" id="btnNew">Start new game</button>
+        <button class="btn primary" id="btnNew">Bắt đầu ván mới</button>
       </div>
 
       <div class="section">
-        <h2>Ranking</h2>
+        <h2>Bảng xếp hạng (Elo Rating)</h2>
         <div id="lb"></div>
         <div class="formula">
           E = 1 / (1 + 10^((R<sub>opp</sub> − R<sub>you</sub>)/400))<br>
           R<sub>new</sub> = R + K × (S − E), K = 32<br>
-          S: win 1 · draw 0.5 · loss 0
+          S: thắng 1 · hòa 0.5 · thua 0
         </div>
-        <p class="hint">Scores and stars are saved in this browser. New players start at 1200.</p>
+        <p class="hint">Điểm số và sao được lưu trữ trên trình duyệt. Người chơi mới bắt đầu từ 1200.</p>
       </div>
     </aside>
   </div>
