@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Knights Chess Arena 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&family=Bangers&family=JetBrains+Mono:wght@400;600&display=swap">
+</head>
+<body>
+  <div class="app">
+    <main id="stage" aria-label="3D chess board">
+      <div id="hud">
+        <span class="dot w" id="turnDot"></span>
+        <span class="st" id="statusText">Blue's turn</span>
+        <span class="stars" id="hudStars">⭐ 0</span>
+      </div>
+      <div id="banner" hidden>
+        <div class="b1" id="bannerLine"></div>
+        <div class="b2" id="bannerMove"></div>
+      </div>
+      <button id="skipBtn" class="btn" hidden>Skip battle ⏭</button>
+      <div id="wordCard" class="word-card" hidden>
+        <div class="wc-top">
+          <span class="chip" id="wcChip"></span>
+          <span id="wcTeam">Blue</span>
+        </div>
+        <div class="wc-word" id="wcWord">KNIGHT</div>
+        <div class="wc-hint" id="wcHint"></div>
+        <div class="wc-line" id="wcLine"></div>
+        <button class="btn wc-say" id="wcSay">🔊 Listen</button>
+      </div>
+      <div id="quiz" class="quiz" hidden>
+        <div class="q-head">
+          <span>⭐ Quiz time!</span>
+          <span id="qStars"></span>
+        </div>
+        <div class="q-text" id="qText"></div>
+        <div class="q-opts" id="qOpts"></div>
+        <div class="q-msg" id="qMsg"></div>
+        <div class="q-foot">
+          <button class="btn" id="qSay">🔊 Listen again</button>
+          <button class="btn" id="qSkip">Skip</button>
+        </div>
+      </div>
+      <div id="promo" class="overlay" hidden>
+        <div class="card">
+          <h3>Promotion!</h3>
+          <p class="hint">Your pawn reached the last row. Pick a new piece.</p>
+          <div class="promo-row" id="promoRow"></div>
+          <button class="btn" id="promoCancel">Cancel move</button>
+        </div>
+      </div>
+      <div id="result" class="overlay" hidden>
+        <div class="card">
+          <div class="eyebrow" id="resReason">Checkmate</div>
+          <h3 id="resTitle">Blue wins!</h3>
+          <div id="resElo" style="display:flex;flex-direction:column;gap:8px"></div>
+          <div class="btns">
+            <button class="btn" id="resView">Look at the board</button>
+            <button class="btn primary" id="resNew">New game</button>
+          </div>
+        </div>
+      </div>
+      <div id="loading">Building the castle…</div>
+    </main>
+
+    <aside class="panel">
+      <div class="section first">
+        <div class="eyebrow">3D chess · Elo · English</div>
+        <h1>Knights Chess Arena</h1>
+        <p class="hint">Tap a piece to hear its name. Every capture starts a battle.</p>
+      </div>
+
+      <div class="section">
+        <div class="stars-card">
+          <span class="big" id="panelStars">⭐ 0 stars</span>
+          <button class="btn primary" id="btnQuiz" style="flex:none">Quiz me!</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="players">
+          <div class="player" id="rowB">
+            <span class="chip b"></span>
+            <span class="nm" id="nameB">—</span>
+            <span class="elo" id="eloB">—</span>
+            <span class="cap" id="capB"></span>
+          </div>
+          <div class="player" id="rowW">
+            <span class="chip w"></span>
+            <span class="nm" id="nameW">—</span>
+            <span class="elo" id="eloW">—</span>
+            <span class="cap" id="capW"></span>
+          </div>
+        </div>
+        <div class="btns">
+          <button class="btn" id="btnResign">Resign</button>
+          <button class="btn" id="btnFlip">Turn the board</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Moves</h2>
+        <div class="moves" id="moves"></div>
+      </div>
+
+      <div class="section">
+        <h2>New game</h2>
+        <div class="seg" role="group" aria-label="Game mode">
+          <button id="modeAI" aria-pressed="true">vs Computer</button>
+          <button id="modePVP" aria-pressed="false">2 Players</button>
+        </div>
+        <div class="fields">
+          <label class="field" id="fP1">
+            <span id="lblP1">Your name</span>
+            <input type="text" id="inP1" maxlength="20" value="Player">
+          </label>
+          <label class="field" id="fP2" hidden>
+            <span>Red player's name</span>
+            <input type="text" id="inP2" maxlength="20" value="Player 2">
+          </label>
+          <label class="field" id="fDiff">
+            <span>Computer level</span>
+            <select id="selDiff">
+              <option value="easy" selected>Easy · Elo 800</option>
+              <option value="med">Medium · Elo 1200</option>
+              <option value="hard">Hard · Elo 1600</option>
+            </select>
+          </label>
+          <label class="field full" id="fSide">
+            <span>Your team</span>
+            <select id="selSide">
+              <option value="w">Blue (moves first)</option>
+              <option value="b">Red</option>
+              <option value="r">Random</option>
+            </select>
+          </label>
+          <label class="field full">
+            <span>Battle style</span>
+            <select id="selStyle">
+              <option value="cartoon" selected>Cartoon · fun for kids</option>
+              <option value="epic">Epic · pieces shatter</option>
+            </select>
+          </label>
+        </div>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="tBattle" checked> Battle scenes when a piece is captured</label>
+          <label class="toggle"><input type="checkbox" id="tVoice" checked> Say piece names out loud</label>
+          <label class="toggle"><input type="checkbox" id="tMoves" checked> Read every move out loud</label>
+          <label class="toggle"><input type="checkbox" id="tQuiz" checked> Quiz time every few moves</label>
+          <label class="toggle"><input type="checkbox" id="tRotate" checked> Turn the board each turn (2 players)</label>
+          <label class="toggle"><input type="checkbox" id="tSound" checked> Sound effects</label>
+        </div>
+        <button class="btn primary" id="btnNew">Start new game</button>
+      </div>
+
+      <div class="section">
+        <h2>Ranking</h2>
+        <div id="lb"></div>
+        <div class="formula">
+          E = 1 / (1 + 10^((R<sub>opp</sub> − R<sub>you</sub>)/400))<br>
+          R<sub>new</sub> = R + K × (S − E), K = 32<br>
+          S: win 1 · draw 0.5 · loss 0
+        </div>
+        <p class="hint">Scores and stars are saved in this browser. New players start at 1200.</p>
+      </div>
+    </aside>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

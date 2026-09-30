@@ -1,0 +1,37 @@
+:root {
+  --bg: #0f1826;
+  --panel: #152033;
+  --panel2: #1c2a41;
+  --line: #2a3b58;
+  --fg: #f1ecdf;
+  --muted: #9aa6bd;
+  --gold: #f2c14e;
+  --gold2: #ffd97a;
+  --ink: #1a1409;
+  --blue: #2f6fe4;
+  --red: #e23a31;
+  --ok: #58c47d;
+  --bad: #ff6b5e;
+  --font-title: 'MedievalSharp', Georgia, serif;
+  --font-kid: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-pow: 'Bangers', Impact, 'Arial Black', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  user-select: none;
+  -webkit-user-select: none;
+}

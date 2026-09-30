@@ -1,0 +1,27 @@
+@media (max-width: 880px) {
+  html,
+  body {
+    height: auto;
+  }
+  .app {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  #stage {
+    height: 66vh;
+    min-height: 380px;
+  }
+  .panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    overflow: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #banner,
+  .quiz,
+  .pow {
+    animation: none;
+  }
+}
