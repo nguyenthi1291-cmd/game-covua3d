@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import { createScene } from '../scene/setup.js';
 import { createBoard, sqPos } from '../scene/board.js';
 import { createHighlights } from '../scene/highlights.js';
-import { makePiece, disposePiece, resetRig } from '../scene/pieces/index.js';
-import { AnimationSystem, lerpAngle } from '../scene/animation.js';
+import { makePiece, disposePiece, idlePiece } from '../scene/pieces/index.js';
+import { BADGES } from '../scene/pieces/badges.js';
+import { AnimationSystem, lerpAngle, smoother } from '../scene/animation.js';
 import { BattleController } from '../battles/index.js';
 import { SoundEffects } from '../audio/sound.js';
 import { SpeechNarrator } from '../learning/speech.js';
-import { QuizManager } from '../learning/quiz.js';
 import { ChessAcademy } from '../learning/academy.js';
 import { getMoveHint } from '../engine/hint.js';
 import { StorageManager } from '../storage/storage.js';
@@ -55,7 +55,6 @@ export class GameController {
       style: 'cartoon',
       voice: true,
       moves: true,
-      quiz: true,
       autoRot: true,
       sound: true
     };
@@ -87,12 +86,10 @@ export class GameController {
     this.capturedBy = { w: [], b: [] };
     this.game = null;
     this.lifted = null;
-    this.pliesSinceQuiz = 0;
     this.cameraMode = 'iso'; // '2d', 'iso', '3d'
     this.currentHint = null;
     this.activeDrill = null;
 
-    this.initQuiz();
     this.initAcademy();
     this.bindEvents();
     this.startLoop();
@@ -124,27 +121,6 @@ export class GameController {
     } catch (e) {
       this.aiWorker = null;
     }
-  }
-
-  initQuiz() {
-    this.quizManager = new QuizManager(
-      {
-        quiz: $('quiz'),
-        qText: $('qText'),
-        qOpts: $('qOpts'),
-        qMsg: $('qMsg'),
-        qSay: $('qSay'),
-        qSkip: $('qSkip'),
-        renderStars: () => this.renderStars(),
-        drawStatic: () => this.drawStatic()
-      },
-      this.storage,
-      this.sound,
-      this.narrator,
-      this.anim,
-      this.highlights,
-      () => ({ G: this.G, meshAt: this.meshAt })
-    );
   }
 
   initAcademy() {
@@ -203,7 +179,6 @@ export class GameController {
     this.moveList = [];
     this.capturedBy = { w: [], b: [] };
     this.lifted = null;
-    this.pliesSinceQuiz = 0;
 
     const p1 = (this.cfg.p1 || '').trim() || 'Người chơi';
     const p2 = (this.cfg.p2 || '').trim() || 'Người chơi 2';
@@ -232,7 +207,7 @@ export class GameController {
     this.curLegal = legalMoves(this.G);
     this.applyCameraMode(this.cameraMode);
 
-    for (const id of ['result', 'banner', 'skipBtn', 'quiz', 'wordCard', 'promo', 'hintCard']) {
+    for (const id of ['result', 'banner', 'skipBtn', 'wordCard', 'promo', 'hintCard']) {
       const el = $(id);
       if (el) el.hidden = true;
     }
@@ -289,12 +264,12 @@ export class GameController {
   }
 
   setLift(r, c) {
-    if (this.lifted && this.lifted.parent) this.lifted.position.y = 0;
+    if (this.lifted?.userData) this.lifted.userData.liftTarget = 0;
     this.lifted = null;
     if (r != null) {
       const m = this.meshAt[r][c];
       if (m) {
-        m.position.y = 0.16;
+        m.userData.liftTarget = 0.28;
         this.lifted = m;
       }
     }
@@ -338,10 +313,6 @@ export class GameController {
   }
 
   onPick(r, c) {
-    if (this.quizManager?.quizActive?.tap) {
-      this.quizManager.quizActive.tap(r, c);
-      return;
-    }
     if (this.busy || this.over || this.isAITurn()) return;
 
     const p = this.G.b[r][c];
@@ -452,14 +423,14 @@ export class GameController {
       $('banner').hidden = false;
       await this.battles.runBattle(mover, capMesh, toPos, sqPos(capSq[0], capSq[1]), pc.t, $('skipBtn'), $('banner'));
     } else {
-      const ps = [this.anim.slide(mover, toPos, 440, pc.t === 'n' ? 0.9 : 0.2)];
+      const ps = [this.anim.slide(mover, toPos, 560, pc.t === 'n' ? 0.9 : 0.22)];
       if (capMesh) ps.push(this.anim.vanish(capMesh, this.cfg.style));
       if (m.castle) {
         const h = m.fr;
         const rf = m.castle === 'K' ? 7 : 0;
         const rt = m.castle === 'K' ? 5 : 3;
         const rm = this.meshAt[h][rf];
-        ps.push(this.anim.wait(120).then(() => this.anim.slide(rm, sqPos(h, rt), 420, 0.35)));
+        ps.push(this.anim.wait(120).then(() => this.anim.slide(rm, sqPos(h, rt), 520, 0.35)));
       }
       this.sound.play('move');
       await Promise.all(ps);
@@ -538,12 +509,6 @@ export class GameController {
     }
 
     this.busy = false;
-    this.pliesSinceQuiz++;
-
-    if (!this.over && this.cfg.quiz && !this.isAITurn() && this.pliesSinceQuiz >= 4 && !this.activeDrill) {
-      this.pliesSinceQuiz = 0;
-      await this.quizManager.runQuiz();
-    }
 
     if (!this.over && this.isAITurn()) {
       this.scheduleAI();
@@ -627,21 +592,53 @@ export class GameController {
     else if (mode === 'iso') $('btnViewIso')?.classList.add('active');
     else if (mode === '3d') $('btnView3D')?.classList.add('active');
 
+    // Cameras sit behind the player's own pieces, looking down steeply so
+    // your army is in the foreground and every square is easy to tap.
+    const cam = this.setup.camera;
+    const portrait = cam.aspect < 1;
+    const zoom = portrait ? 1.0 : 1;
     let targetPos;
+    let fov;
     if (mode === '2d') {
-      targetPos = new V3(0, 13.5, 0.001 * mult);
+      // almost straight down, narrow lens → near-flat, board-game look
+      fov = 26;
+      targetPos = new V3(0, 23.5 * zoom, 1.3 * mult * zoom);
     } else if (mode === 'iso') {
-      targetPos = new V3(0, 11.5, 8.5 * mult);
+      // ~64° above the board, behind your own army: clear view of your pieces
+      fov = 34;
+      targetPos = new V3(0, 15.4 * zoom, 7.6 * mult * zoom);
     } else {
-      // 3d arena
-      targetPos = new V3(0, 9.5, 11.0 * mult);
+      // 3d arena (cinematic, lower)
+      fov = 42;
+      targetPos = new V3(0, 8.6 * zoom, 10.6 * mult * zoom);
     }
+    const fov0 = cam.userData.fov || 42;
+    cam.userData.fov = fov;
 
-    const camFrom = this.setup.camera.position.clone();
-    this.anim.tween(600, e => {
-      this.setup.camera.position.lerpVectors(camFrom, targetPos, e);
-      this.setup.controls.target.set(0, 0, 0);
-    });
+    // Spherical interpolation around the board = smooth arc, no dip through it
+    const tgt = this.setup.controls.target;
+    const s0 = new THREE.Spherical().setFromVector3(new V3().subVectors(this.setup.camera.position, tgt));
+    const s1 = new THREE.Spherical().setFromVector3(targetPos);
+    const tgtFrom = tgt.clone();
+    const id = (this.camTweenId = (this.camTweenId || 0) + 1);
+    this.anim.tween(
+      950,
+      (e, k) => {
+        if (id !== this.camTweenId) return; // a newer camera move took over
+        const p = smoother(k);
+        const sp = new THREE.Spherical(
+          s0.radius + (s1.radius - s0.radius) * p,
+          s0.phi + (s1.phi - s0.phi) * p,
+          lerpAngle(s0.theta, s1.theta, p)
+        );
+        tgt.lerpVectors(tgtFrom, new V3(0, 0, 0), p);
+        cam.position.copy(tgt).add(new V3().setFromSpherical(sp));
+        const f = fov0 + (fov - fov0) * p;
+        cam.fov = cam.aspect < 1 ? f + 10 : f;
+        cam.updateProjectionMatrix();
+      },
+      null
+    );
   }
 
   zoomCamera(delta) {
@@ -649,7 +646,7 @@ export class GameController {
     const tgt = this.setup.controls.target;
     const v = new V3().subVectors(cam.position, tgt);
     const len = v.length();
-    const newLen = THREE.MathUtils.clamp(len + delta, 4.5, 22);
+    const newLen = THREE.MathUtils.clamp(len + delta, 4.5, 26);
     v.setLength(newLen);
     cam.position.copy(tgt).add(v);
   }
@@ -745,14 +742,15 @@ export class GameController {
   }
 
   async rotateCamTo(color) {
+    this.camTweenId = (this.camTweenId || 0) + 1; // cancel any view-mode camera move
     const off = new V3().subVectors(this.setup.camera.position, this.setup.controls.target);
     const sp = new THREE.Spherical().setFromVector3(off);
     const t0 = sp.theta;
     const t1 = color === 'w' ? 0 : Math.PI;
     if (Math.abs(lerpAngle(t0, t1, 1) - t0) < 0.01) return;
     this.setup.controls.enabled = false;
-    await this.anim.tween(900, e => {
-      const s = new THREE.Spherical(sp.radius, sp.phi, lerpAngle(t0, t1, e));
+    await this.anim.tween(1100, (e, k) => {
+      const s = new THREE.Spherical(sp.radius, sp.phi, lerpAngle(t0, t1, smoother(k)));
       this.setup.camera.position.copy(this.setup.controls.target).add(new V3().setFromSpherical(s));
     });
     this.setup.controls.enabled = true;
@@ -794,8 +792,6 @@ export class GameController {
     const s = this.storage.getStars();
     $('hudStars').textContent = '⭐ ' + s;
     $('panelStars').textContent = `⭐ ${s} sao`;
-    const qS = $('qStars');
-    if (qS) qS.textContent = '⭐ ' + s;
   }
 
   renderUI() {
@@ -879,13 +875,20 @@ export class GameController {
     $('selStyle').onchange = e => (this.cfg.style = e.target.value);
     $('tBattle').onchange = e => (this.cfg.battle = e.target.checked);
     const tClarity = $('tClarity');
-    if (tClarity) tClarity.onchange = e => (this.cfg.clarity = e.target.checked);
+    if (tClarity) {
+      tClarity.onchange = e => {
+        this.cfg.clarity = e.target.checked;
+        BADGES.visible = this.cfg.clarity;
+        for (const row of this.meshAt || []) {
+          for (const m of row) if (m?.userData?.badge) m.userData.badge.visible = BADGES.visible;
+        }
+      };
+    }
     $('tVoice').onchange = e => {
       this.cfg.voice = e.target.checked;
       this.narrator.enabled = this.cfg.voice;
     };
     $('tMoves').onchange = e => (this.cfg.moves = e.target.checked);
-    $('tQuiz').onchange = e => (this.cfg.quiz = e.target.checked);
     $('tRotate').onchange = e => (this.cfg.autoRot = e.target.checked);
     $('tSound').onchange = e => {
       this.cfg.sound = e.target.checked;
@@ -1002,14 +1005,12 @@ export class GameController {
 
       this.anim.update(dtms);
 
-      // Waving flags on Rooks
+      // Idle life: breathing, head glance, flags, smooth selection lift
       if (this.meshAt) {
+        const dt = dtms / 1000;
         for (const row of this.meshAt) {
           for (const m of row) {
-            if (m?.userData?.rig?.flag) {
-              const r = m.userData.rig;
-              r.flag.rotation.y = Math.sin(now / 380 + r.phase) * 0.35;
-            }
+            if (m) idlePiece(m, now, dt);
           }
         }
       }
