@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createBattleMoves } from './moves.js';
 import { lerpAngle } from '../scene/animation.js';
 import { resetRig } from '../scene/pieces/index.js';
+import { BADGES } from '../scene/pieces/badges.js';
 
 const V3 = THREE.Vector3;
 
@@ -46,6 +47,14 @@ export class BattleController {
     }
 
     const camFrom = this.camera.position.clone();
+    // cinematic lens for the close-up, restored afterwards
+    const fovFrom = this.camera.fov;
+    const fovTo = this.camera.aspect < 1 ? 56 : 42;
+    const setFov = f => {
+      this.camera.fov = f;
+      this.camera.updateProjectionMatrix();
+    };
+    for (const p of [att, def]) if (p.userData?.badge) p.userData.badge.visible = false;
     const tgtFrom = this.controls.target.clone();
     const dir = new V3().subVectors(defPos, att.position);
     dir.y = 0;
@@ -79,6 +88,7 @@ export class BattleController {
     await Promise.all([
       this.anim.tween(800, e => {
         this.camera.position.lerpVectors(camFrom, camTo, e);
+        setFov(fovFrom + (fovTo - fovFrom) * e);
         this.controls.target.lerpVectors(tgtFrom, tgtTo, e);
       }),
       this.anim.tween(800, (e, k) => {
@@ -116,6 +126,7 @@ export class BattleController {
       }),
       this.anim.tween(900, e => {
         this.camera.position.lerpVectors(camTo, camFrom, e);
+        setFov(fovTo + (fovFrom - fovTo) * e);
         this.controls.target.lerpVectors(tgtTo, tgtFrom, e);
       })
     ]);
@@ -124,6 +135,8 @@ export class BattleController {
     att.rotation.y = att.userData?.baseRot || 0;
     att.scale.set(1, 1, 1);
     resetRig(att);
+    setFov(fovFrom);
+    if (att.userData?.badge) att.userData.badge.visible = BADGES.visible;
 
     this.anim.timeScale = 1;
     if (timerBar) timerBar.style.display = 'none';
