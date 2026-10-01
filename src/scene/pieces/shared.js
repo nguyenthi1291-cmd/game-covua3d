@@ -6,12 +6,20 @@ export const M = (geo, mat, x = 0, y = 0, z = 0) => {
   return m;
 };
 
-export const Cyl = (a, b, h, s = 16, hs = 1, open = false, ts = 0, tl = Math.PI * 2) =>
-  new THREE.CylinderGeometry(a, b, h, s, hs, open, ts, tl);
+// Smoothness: every curved primitive gets at least 2x the radial segments
+// (min 24) so silhouettes look round instead of faceted.
+const SMOOTH = n => Math.max(24, Math.round(n * 2));
 
-export const Sph = (r, w = 16, h = 12) => new THREE.SphereGeometry(r, w, h);
+export const Cyl = (a, b, h, s = 16, hs = 1, open = false, ts = 0, tl = Math.PI * 2) =>
+  new THREE.CylinderGeometry(a, b, h, SMOOTH(s), hs, open, ts, tl);
+
+export const Sph = (r, w = 16, h = 12) => new THREE.SphereGeometry(r, SMOOTH(w), Math.max(16, h * 2));
 export const Box = (a, b, c) => new THREE.BoxGeometry(a, b, c);
-export const Cone = (r, h, s = 16) => new THREE.ConeGeometry(r, h, s);
+export const Cone = (r, h, s = 16) => new THREE.ConeGeometry(r, h, s <= 6 ? s : SMOOTH(s));
+
+// Rounded profile solid (lathe) – used for smooth pedestals & domes
+export const Lathe = (pts, seg = 48) =>
+  new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
 
 export function shield(m, sz = 1) {
   const s = new THREE.Shape();
@@ -82,13 +90,13 @@ export function humanoid(m, o) {
     g.add(M(Box(0.045, 0.2, 0.012), m.trim, 0, 0.72, -0.152));
     g.add(M(Box(0.14, 0.045, 0.012), m.trim, 0, 0.76, -0.152));
   } else {
-    const nk = M(new THREE.TorusGeometry(0.1, 0.012, 8, 24), m.gold, 0, 0.86, -0.02);
+    const nk = M(new THREE.TorusGeometry(0.1, 0.012, 16, 48), m.gold, 0, 0.86, -0.02);
     nk.rotation.x = Math.PI / 2.4;
     g.add(nk);
     g.add(M(Sph(0.025, 10, 8), m.gem, 0, 0.82, -0.12));
   }
 
-  const belt = M(new THREE.TorusGeometry(0.148, 0.018, 8, 24), o.gown ? m.gold : m.leather, 0, 0.6, 0);
+  const belt = M(new THREE.TorusGeometry(0.148, 0.018, 16, 48), o.gown ? m.gold : m.leather, 0, 0.6, 0);
   belt.rotation.x = Math.PI / 2;
   g.add(belt);
 
@@ -138,7 +146,7 @@ export function humanoid(m, o) {
     }
     if (o.head === 'mitre') {
       head.add(M(Cone(0.09, 0.26, 20), m.cloth, 0, 0.27, 0));
-      const band = M(new THREE.TorusGeometry(0.09, 0.012, 8, 24), m.gold, 0, 0.15, 0);
+      const band = M(new THREE.TorusGeometry(0.09, 0.012, 16, 48), m.gold, 0, 0.15, 0);
       band.rotation.x = Math.PI / 2;
       head.add(band);
       head.add(M(Box(0.02, 0.1, 0.02), m.gold, 0, 0.25, -0.055));
