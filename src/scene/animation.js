@@ -7,6 +7,14 @@ const V3 = THREE.Vector3;
 
 export const easeIO = t => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 export const easeIn = t => t * t;
+// Smoother curves for piece/camera motion (gentle start & settle)
+export const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const smoother = t => t * t * t * (t * (t * 6 - 15) + 10);
+export const easeOutBack = t => {
+  const c1 = 1.4;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
 export const lerp = (a, b, t) => a + (b - a) * t;
 
 export function lerpAngle(a, b, t) {
@@ -114,12 +122,16 @@ export class AnimationSystem {
   flash(piece, color = 0xff3322) {
     const c = new THREE.Color(color);
     const mats = piece.userData?.mats || [];
+    const base = piece.userData?.emissive0 || [];
+    const tmp = new THREE.Color();
     this.tween(
       380,
       (e, k) => {
-        for (const mt of mats) {
-          if (mt.emissive) mt.emissive.copy(c).multiplyScalar(0.8 * (1 - k));
-        }
+        mats.forEach((mt, i) => {
+          if (!mt.emissive) return;
+          tmp.copy(base[i] || new THREE.Color(0));
+          mt.emissive.copy(tmp).lerp(c.clone().multiplyScalar(0.8), 1 - k);
+        });
       },
       null
     );
@@ -168,13 +180,48 @@ export class AnimationSystem {
     setTimeout(() => el.remove(), 950);
   }
 
-  slide(mesh, to, ms = 440, hop = 0.2) {
+  // Graceful move: cubic ease, arc hop, lean into the direction of travel,
+  // then a small squash-and-settle on landing.
+  slide(mesh, to, ms = 560, hop = 0.2) {
     const from = mesh.position.clone();
-    return this.tween(ms, (e, k) => {
-      mesh.position.lerpVectors(from, to, e);
-      mesh.position.y = Math.sin(k * Math.PI) * hop;
-    }).then(() => {
+    const inner = mesh.userData?.inner;
+    const dir = new V3().subVectors(to, from);
+    dir.y = 0;
+    const dist = dir.length();
+    if (dist > 0.001) dir.normalize();
+    // direction in the piece's local frame (pieces are rotated by baseRot)
+    const yaw = mesh.rotation.y;
+    const lx = dir.x * Math.cos(yaw) - dir.z * Math.sin(yaw);
+    const lz = dir.x * Math.sin(yaw) + dir.z * Math.cos(yaw);
+    const lean = Math.min(0.16, 0.05 + dist * 0.025);
+    const dur = ms + Math.min(220, dist * 40);
+
+    return this.tween(
+      dur,
+      (e, k) => {
+        const p = easeInOutCubic(k);
+        mesh.position.lerpVectors(from, to, p);
+        mesh.position.y = Math.sin(p * Math.PI) * hop;
+        if (inner) {
+          const l = Math.sin(k * Math.PI) * lean;
+          inner.rotation.x = lz * l;
+          inner.rotation.z = -lx * l;
+        }
+      },
+      null
+    ).then(() => {
+      mesh.position.copy(to);
       mesh.position.y = 0;
+      if (!inner) return;
+      inner.rotation.x = inner.rotation.z = 0;
+      return this.tween(
+        240,
+        (e, k) => {
+          const sq = Math.sin(k * Math.PI) * (1 - k) * 0.14;
+          inner.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.5);
+        },
+        null
+      ).then(() => inner.scale.set(1, 1, 1));
     });
   }
 

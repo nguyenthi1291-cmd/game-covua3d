@@ -48,13 +48,14 @@ export const BRICK = canvasTex(
   256,
   256,
   (x, w, h) => {
-    x.fillStyle = '#2e3137';
+    // light sandstone castle blocks (brighter, more elegant than dark grey)
+    x.fillStyle = '#9b9182';
     x.fillRect(0, 0, w, h);
     for (let r = 0; r < 16; r++) {
       const off = (r % 2) * 16;
       for (let c = -1; c < 8; c++) {
-        const g = (84 + Math.random() * 34) | 0;
-        x.fillStyle = `rgb(${g},${g + 3},${g + 9})`;
+        const g = (205 + Math.random() * 30) | 0;
+        x.fillStyle = `rgb(${g},${g - 6},${g - 18})`;
         x.fillRect(c * 32 + off + 1.5, r * 16 + 1.5, 29, 13);
       }
     }

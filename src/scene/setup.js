@@ -53,7 +53,7 @@ export function createScene(container) {
   controls.dampingFactor = 0.08;
   controls.maxPolarAngle = Math.PI * 0.46;
   controls.minDistance = 4.5;
-  controls.maxDistance = 24;
+  controls.maxDistance = 28;
   controls.enablePan = false;
 
   scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x1a1410, 0.6));
@@ -80,7 +80,9 @@ export function createScene(container) {
     if (!w || !h) return;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    camera.fov = w / h < 1 ? 56 : 42;
+    // per-view-mode FOV (narrow FOV = less distortion in the top-down view)
+    const f = camera.userData.fov || 42;
+    camera.fov = w / h < 1 ? f + 10 : f;
     camera.updateProjectionMatrix();
   }
 
