@@ -66,9 +66,9 @@ export function makePiece(t, col) {
   } else {
     const opts = {
       p: { head: 'helm', plume: true, shield: true, sword: 'down' },
-      b: { head: 'mitre', shield: true, sword: 'forward' },
+      b: { head: 'bishop', robe: true, crozier: true },
       q: { head: 'queen', gown: true, cape: true, scepter: true },
-      k: { head: 'king', cape: true, shield: true, bigShield: true, sword: 'down', bigSword: true }
+      k: { head: 'king', cape: true, sword: 'down', bigSword: true }
     }[t];
     const h = humanoid(m, opts);
     h.scale.setScalar(sc);

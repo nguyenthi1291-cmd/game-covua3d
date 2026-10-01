@@ -45,6 +45,24 @@ export function horseKnight(m) {
   tail.rotation.x = 2.6;
   horse.add(tail);
 
+  // Feathered wings (layered gold-trimmed stone feathers)
+  for (const s of [-1, 1]) {
+    const wing = new THREE.Group();
+    wing.position.set(s * 0.1, 0.45, -0.24);
+    for (let i = 0; i < 6; i++) {
+      const len = 0.34 - i * 0.04;
+      const f = M(Sph(0.5, 12, 8), i === 0 ? m.gold : m.horse, 0, len / 2, 0.02 * i);
+      f.scale.set(0.015, len, 0.06);
+      const pivot = new THREE.Group();
+      pivot.rotation.x = 0.25 + i * 0.22;
+      pivot.add(f);
+      wing.add(pivot);
+    }
+    wing.rotation.z = s * -0.55;
+    wing.rotation.y = s * 0.15;
+    horse.add(wing);
+  }
+
   horse.add(M(Box(0.26, 0.16, 0.3), m.cloth, 0, 0.37, -0.16));
   for (const s of [-1, 1]) {
     horse.add(M(Box(0.008, 0.1, 0.03), m.trim, s * 0.133, 0.37, -0.16));

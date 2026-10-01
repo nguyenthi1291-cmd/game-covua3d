@@ -21,6 +21,76 @@ export const Cone = (r, h, s = 16) => new THREE.ConeGeometry(r, h, s <= 6 ? s : 
 export const Lathe = (pts, seg = 48) =>
   new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
 
+// Flared skirt/robe with vertical pleats (folds deepen toward the hem)
+export function pleated(rTop, rBot, h, folds = 14, amp = 0.018) {
+  const geo = new THREE.CylinderGeometry(rTop, rBot, h, 96, 12, true);
+  const p = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const k = 0.5 - v.y / h; // 0 top → 1 hem
+    const a = Math.atan2(v.z, v.x);
+    const r = Math.hypot(v.x, v.z);
+    const d = 1 + (amp * Math.sin(a * folds) * (0.25 + k)) / Math.max(r, 0.01);
+    p.setXYZ(i, v.x * d, v.y, v.z * d);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Ornate crown: band + alternating spikes/orbs + optional arches and star
+export function crown(m, o = {}) {
+  const g = new THREE.Group();
+  const r = o.r || 0.105;
+  const tall = o.tall || 0.09;
+  g.add(M(Cyl(r, r * 0.95, 0.06, 24, 1, true), m.gold, 0, 0.03, 0));
+  const rim = M(new THREE.TorusGeometry(r, 0.008, 8, 48), m.gold, 0, 0.0, 0);
+  rim.rotation.x = Math.PI / 2;
+  g.add(rim);
+  const rim2 = rim.clone();
+  rim2.position.y = 0.06;
+  g.add(rim2);
+  const n = o.points || 8;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const big = i % 2 === 0;
+    const hgt = big ? tall : tall * 0.6;
+    const x = Math.sin(a) * r;
+    const z = Math.cos(a) * r;
+    const sp = M(Cone(big ? 0.022 : 0.016, hgt, 8), m.gold, x, 0.06 + hgt / 2, z);
+    g.add(sp);
+    g.add(M(Sph(big ? 0.013 : 0.01, 8, 6), big ? m.gold : m.gem, x, 0.06 + hgt + 0.008, z));
+    // little leaf on the band
+    const lf = M(Sph(0.014, 8, 6), m.gold, Math.sin(a) * (r + 0.004), 0.035, Math.cos(a) * (r + 0.004));
+    lf.scale.set(1, 1.6, 0.5);
+    lf.lookAt(0, 0.035, 0);
+    g.add(lf);
+  }
+  g.add(M(Sph(0.02, 10, 8), m.gem, 0, 0.032, -r - 0.004));
+  if (o.arches) {
+    for (let i = 0; i < 2; i++) {
+      const arc = M(new THREE.TorusGeometry(r * 0.92, 0.008, 8, 32, Math.PI), m.gold, 0, 0.06, 0);
+      arc.rotation.y = (i * Math.PI) / 2;
+      arc.scale.y = 0.9;
+      g.add(arc);
+    }
+    g.add(M(Sph(0.026, 12, 10), m.gold, 0, 0.06 + r * 0.85, 0));
+  }
+  if (o.star) {
+    const st = M(new THREE.OctahedronGeometry(0.045, 0), m.gold, 0, 0.06 + (o.arches ? r * 0.85 + 0.05 : tall + 0.04), 0);
+    st.scale.set(0.55, 1.2, 0.25);
+    g.add(st);
+    const st2 = st.clone();
+    st2.rotation.z = Math.PI / 2;
+    g.add(st2);
+  } else if (o.cross) {
+    const y = 0.06 + (o.arches ? r * 0.85 + 0.06 : tall + 0.05);
+    g.add(M(Box(0.014, 0.07, 0.014), m.gold, 0, y, 0));
+    g.add(M(Box(0.045, 0.014, 0.014), m.gold, 0, y + 0.01, 0));
+  }
+  return g;
+}
+
 export function shield(m, sz = 1) {
   const s = new THREE.Shape();
   s.moveTo(-0.13, 0.12);
@@ -67,9 +137,13 @@ export function humanoid(m, o) {
   const g = new THREE.Group();
   const rig = { idleR: 0.12, idleL: 0.1 };
 
+  if (o.robe) o.gown = true;
   if (o.gown) {
-    g.add(M(Cyl(0.12, 0.27, 0.62, 24), m.cloth, 0, 0.31, 0));
-    g.add(M(Cyl(0.275, 0.28, 0.04, 24), m.gold, 0, 0.02, 0));
+    g.add(M(pleated(0.13, o.robe ? 0.24 : 0.3, 0.62, o.robe ? 10 : 16, o.robe ? 0.012 : 0.02), m.cloth, 0, 0.31, 0));
+    g.add(M(Cyl(0.12, 0.13, 0.62, 24), m.cloth, 0, 0.31, 0)); // inner fill
+    const hem = M(new THREE.TorusGeometry(o.robe ? 0.245 : 0.305, 0.014, 10, 96), m.gold, 0, 0.012, 0);
+    hem.rotation.x = Math.PI / 2;
+    g.add(hem);
   } else if (o.rider) {
     g.add(M(Cyl(0.15, 0.25, 0.22, 20, 1, true), m.cloth, 0, 0.5, 0));
     for (const s of [-1, 1]) {
@@ -161,29 +235,42 @@ export function humanoid(m, o) {
     }
     head.add(M(Sph(0.017, 8, 6), m.skin, 0, -0.005, -0.097));
 
-    if (o.head === 'king') {
-      const b = M(Sph(0.08, 16, 12), m.hair, 0, -0.07, -0.035);
+    if (o.head === 'king' || o.head === 'bishop') {
+      const b = M(Sph(o.head === 'bishop' ? 0.07 : 0.08, 16, 12), m.hair, 0, -0.07, -0.035);
       b.scale.set(1, 1.15, 0.75);
       head.add(b);
       head.add(M(Box(0.08, 0.018, 0.02), m.hair, 0, -0.025, -0.092));
+      if (o.head === 'king') {
+        // wavy hair at the back of the neck
+        head.add(M(Cyl(0.095, 0.11, 0.12, 16, 1, false, -Math.PI / 2, Math.PI), m.hair, 0, -0.04, 0.02));
+      }
     } else {
       head.add(M(Box(0.035, 0.01, 0.01), m.gem, 0, -0.045, -0.092));
       head.add(M(Cyl(0.09, 0.12, 0.26, 16, 1, false, -Math.PI / 2, Math.PI), m.hair, 0, -0.1, 0.02));
     }
-    head.add(M(Cyl(0.106, 0.1, 0.07, 20, 1, true), m.gold, 0, 0.09, 0));
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      head.add(
-        M(
-          o.head === 'king' ? Cone(0.024, 0.07, 6) : Sph(0.022, 10, 8),
-          o.head === 'king' ? m.gold : m.gem,
-          Math.sin(a) * 0.1,
-          0.15,
-          Math.cos(a) * 0.1
-        )
-      );
+    let cr;
+    if (o.head === 'king') cr = crown(m, { r: 0.105, tall: 0.1, points: 8, arches: true, cross: true });
+    else if (o.head === 'queen') cr = crown(m, { r: 0.1, tall: 0.15, points: 10, star: true });
+    else {
+      // Bishop: tall onion-dome mitre with gold bands
+      cr = new THREE.Group();
+      const prof = [[0.0, 0], [0.105, 0], [0.108, 0.05], [0.12, 0.1], [0.115, 0.16], [0.085, 0.22], [0.045, 0.27], [0.02, 0.3], [0.0, 0.31]];
+      cr.add(M(Lathe(prof, 40), m.cloth));
+      for (const y of [0.012, 0.06, 0.16]) {
+        const b = M(new THREE.TorusGeometry(y === 0.16 ? 0.117 : 0.11, 0.009, 8, 40), m.gold, 0, y, 0);
+        b.rotation.x = Math.PI / 2;
+        cr.add(b);
+      }
+      for (let i = 0; i < 8; i++) {
+        const rib = M(Box(0.008, 0.2, 0.008), m.gold, Math.sin((i / 8) * Math.PI * 2) * 0.1, 0.16, Math.cos((i / 8) * Math.PI * 2) * 0.1);
+        rib.lookAt(0, 0.16, 0);
+        rib.rotation.x += 0.25;
+        cr.add(rib);
+      }
+      cr.add(M(Sph(0.028, 12, 10), m.gold, 0, 0.33, 0));
     }
-    head.add(M(Sph(0.02, 10, 8), m.gem, 0, 0.09, -0.106));
+    cr.position.y = 0.06;
+    head.add(cr);
   }
 
   if (o.cape) {
@@ -207,6 +294,19 @@ export function humanoid(m, o) {
     rig.sword = sw;
     rig.idleR = o.sword === 'forward' ? 0.7 : o.sword === 'raised' ? 2.5 : 0.12;
     rig.armR.rotation.x = rig.idleR;
+  }
+
+  if (o.crozier) {
+    const cz = new THREE.Group();
+    cz.add(M(Cyl(0.011, 0.011, 0.7, 8), m.gold, 0, 0.12, 0));
+    const hook = M(new THREE.TorusGeometry(0.045, 0.011, 8, 24, Math.PI * 1.4), m.gold, 0.045, 0.47, 0);
+    cz.add(hook);
+    cz.add(M(Sph(0.022, 10, 8), m.gem, 0, 0.44, 0));
+    rig.handR.add(cz);
+    rig.idleR = 0.5;
+    rig.armR.rotation.x = 0.5;
+    cz.rotation.x = -0.5;
+    rig.crozier = cz;
   }
 
   if (o.scepter) {
