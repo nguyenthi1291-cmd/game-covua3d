@@ -17,10 +17,9 @@ An educational and casual competitive 3D chess web game with medieval fantasy pi
 - **Cinematic Capture Battles**:
   - 6 unique battle sequences: Pawn Shield Bash, Knight Cavalry Charge, Bishop Magic Bolts & Beam, Rook Cannon Blast, Queen Whirlwind Slash, King Royal Smash.
   - Cartoon & Epic (piece shatter) battle styles with a 25× skip button.
-- **English Learning & Quizzes**:
+- **English Learning**:
   - Word cards with pronunciation and piece rules.
   - Voice narration via Web Speech API.
-  - Interactive quizzes with star rewards (tap piece, identify color, piece count, file/rank coordinates).
 - **Elo Ratings & Leaderboard**:
   - Complete Elo rating calculator ($K=32$) with match histories and local browser persistence.
 
