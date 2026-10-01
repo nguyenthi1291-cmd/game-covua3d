@@ -1,6 +1,6 @@
 export const TEAM = {
-  w: { name: 'Blue', cloth: 0x2f6fe4, cloth2: 0x1b4bb0, trim: 0xffd23f, gem: 0xff3b6b, hair: 0x8a5a2b, css: '#2f6fe4' },
-  b: { name: 'Red', cloth: 0xe23a31, cloth2: 0x9e1f1a, trim: 0xffffff, gem: 0x3bd1ff, hair: 0x3b2718, css: '#e23a31' }
+  w: { name: 'Blue', cloth: 0x2f6fe4, cloth2: 0x1b4bb0, trim: 0xffd23f, gem: 0xff3b6b, hair: 0x8a5a2b, base: 0x16284f, css: '#2f6fe4' },
+  b: { name: 'Red', cloth: 0xe23a31, cloth2: 0x9e1f1a, trim: 0xffffff, gem: 0x3bd1ff, hair: 0x3b2718, base: 0x4d1512, css: '#e23a31' }
 };
 
 export const teamName = col => TEAM[col].name;
